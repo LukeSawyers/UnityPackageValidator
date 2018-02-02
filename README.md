@@ -14,10 +14,13 @@ This editor script will search within the repository for a file named UnityPacka
 The contents of this file should look something like this:
 
 Packages:
+
 FolderOne
+
 FolderTwo
 
 Dependencies:
+
 FolderTwo FolderOne
 
 This tells the validator to look for root folders called FolderOne and FolderTwo and these are intended to be exported as unity packages.
