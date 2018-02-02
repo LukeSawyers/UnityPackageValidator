@@ -44,6 +44,6 @@ FolderTwo FolderOne
 
  - All packages can be exported by clicking Export All Packages at the bottom of the menu window. 
  
-# Notes
+## Notes
 
  - This does not check c# or JS references to other classes or plugins, for now this must be verified another way
