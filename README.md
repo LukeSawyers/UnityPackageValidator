@@ -12,16 +12,15 @@ Licensed under the GNU Lesser General Public License v3 (LGPL-3.0)
  - This editor script will search within the repository for a file named UnityPackageManifest.txt. This file tells the script which folders are intended to be exported as unity packages.
 
  - The contents of this file should look something like this:
-
+ 
+<pre>
 Packages:
-
 FolderOne
-
 FolderTwo
 
 Dependencies:
-
 FolderTwo FolderOne
+<pre>
 
  - This tells the validator to look for root folders called FolderOne and FolderTwo and these are intended to be exported as unity packages.
 
