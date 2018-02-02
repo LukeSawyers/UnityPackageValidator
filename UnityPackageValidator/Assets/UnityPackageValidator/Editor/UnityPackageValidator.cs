@@ -12,7 +12,7 @@ namespace UnityPackageValidator
     /// exportable UnityPackages. 
     /// Checks the dependencies of these packages to ensure their dependencies are correct
     /// </summary>
-    public class CubicARPackageValidator : EditorWindow
+    public class UnityPackageValidator : EditorWindow
     {
         private enum ManifestReadState
         {
@@ -21,7 +21,7 @@ namespace UnityPackageValidator
             Dependencies
         }
 
-        private static CubicARPackageValidator Instance;
+        private static UnityPackageValidator Instance;
 
         private Vector2 _scrollViewPos = Vector2.zero;
 
@@ -51,15 +51,15 @@ namespace UnityPackageValidator
 
         public static void ExportUnityPackages()
         {
-            Instance = new CubicARPackageValidator();
+            Instance = new UnityPackageValidator();
             Instance.ExportPackages();
         }
 
-        [MenuItem("CubicAR/Unity Package Validator")]
+        [MenuItem("Tools/Unity Package Validator")]
         static void Init()
         {
             // Get existing open window or if none, make a new one:
-            CubicARPackageValidator window = (CubicARPackageValidator)EditorWindow.GetWindow(typeof(CubicARPackageValidator), false, "CubicAR Package Validator");
+            UnityPackageValidator window = (UnityPackageValidator)EditorWindow.GetWindow(typeof(UnityPackageValidator), false, "Unity Package Validator");
             window.Show();
             Instance = window;
         }
@@ -97,16 +97,16 @@ namespace UnityPackageValidator
         private void GetPackageManifest()
         {
             // get the manifest path
-            var files = AssetDatabase.FindAssets("CubicARPackageManifest");
+            var files = AssetDatabase.FindAssets("UnityPackageManifest");
 
-            if (files == null)
+            if (files == null || files.Length == 0)
             {
-                Debug.LogWarning("CubicARPackageManager: No Package Manifest file found");
+                Debug.LogWarning("UnityPackageManager: No Package Manifest file found");
                 return;
             }
             else if (files.Length > 1)
             {
-                Debug.LogWarning("CubicARPackageManager: More than one package manifest file found, taking arbitrary first: " + AssetDatabase.GUIDToAssetPath(files[0]));
+                Debug.LogWarning("UnityPackageManager: More than one package manifest file found, taking arbitrary first: " + AssetDatabase.GUIDToAssetPath(files[0]));
             }
             _packageManifest = AssetDatabase.GUIDToAssetPath(files[0]);
             _packageManifestLines = _packageManifestWindowText.Split(new string[] { "\n" }, System.StringSplitOptions.None).Length;
