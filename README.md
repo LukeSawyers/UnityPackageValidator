@@ -20,7 +20,7 @@ FolderTwo
 
 Dependencies:
 FolderTwo FolderOne
-<pre>
+</pre>
 
  - This tells the validator to look for root folders called FolderOne and FolderTwo and these are intended to be exported as unity packages.
 
