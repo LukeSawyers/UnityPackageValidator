@@ -1,6 +1,4 @@
-﻿using System.IO;
-using System.Linq;
-using System.Collections;
+﻿using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -14,6 +12,10 @@ namespace UnityPackageValidator
     /// </summary>
     public class UnityPackageValidator : EditorWindow
     {
+        // holding an instance allows method to be called from command line
+        private static UnityPackageValidator Instance;
+
+        // pacakage manifest
         private enum ManifestReadState
         {
             None,
@@ -21,11 +23,10 @@ namespace UnityPackageValidator
             Dependencies
         }
 
-        private static UnityPackageValidator Instance;
-
-        private Vector2 _scrollViewPos = Vector2.zero;
-
         private string _packageManifest = "";
+
+        // Package manifest editor
+        private Vector2 _scrollViewPos = Vector2.zero;
 
         private string PackageManifestText
         {
@@ -45,9 +46,13 @@ namespace UnityPackageValidator
 
         private int _packageManifestLines = 1;
 
+        // packages
         private List<UnityPackage> _packages = new List<UnityPackage>();
 
         private List<UnityPackageTopView> _packageViews = new List<UnityPackageTopView>();
+
+        // class references
+        private bool IncludeClassDependencies = false;
 
         public static void ExportUnityPackages()
         {
@@ -79,8 +84,9 @@ namespace UnityPackageValidator
             // Get the package manifest
             if(GUILayout.Button("Validate Packages"))
             {
-                GetPackages();
+                GetPackages(IncludeClassDependencies);
             }
+            IncludeClassDependencies = GUILayout.Toggle(IncludeClassDependencies, "Include class dependencies");
 
             ShowPackages();
 
@@ -124,7 +130,7 @@ namespace UnityPackageValidator
             if (GUILayout.Button("Save Manifest File"))
             {
                 System.IO.File.WriteAllText(_packageManifest, _packageManifestWindowText);
-                GetPackages();
+                GetPackages(IncludeClassDependencies);
             }
         }
 
@@ -145,7 +151,7 @@ namespace UnityPackageValidator
         /// <summary>
         /// Gets packages from the repository based on the manifest and validates them
         /// </summary>
-        private void GetPackages()
+        private void GetPackages(bool includeClassDependencies)
         {
             var packages = ReadPackageManifest();
             if (packages == null)
@@ -169,7 +175,7 @@ namespace UnityPackageValidator
                 {
                     // if it already exists update the dependency list
                     var package = _packages.First(p => p.Name == newPackage.Name);
-                    package.UpdatePackageDependencies(newPackage.Dependencies);
+                    package.UpdatePackageDependencies(newPackage.Dependencies, IncludeClassDependencies);
                 }
             }
 
@@ -268,7 +274,7 @@ namespace UnityPackageValidator
 
             foreach(var package in packages)
             {
-                package.UpdateFileLists();
+                package.UpdateFileLists(IncludeClassDependencies);
             }
 
             return packages;
@@ -281,264 +287,12 @@ namespace UnityPackageValidator
         {
             GetPackageManifest();
             RenderManifestWindow();
-            GetPackages();
+            GetPackages(IncludeClassDependencies);
             foreach (UnityPackage p in _packages)
             {
-                p.ExportPackage();
+                p.ExportPackage(false);
             }
         }
     }
 
-    /// <summary>
-    /// The top package view
-    /// </summary>
-    public class UnityPackageTopView
-    {
-        public bool TopFoldout { get; set; }
-        public bool PackageDependenciesFoldout { get; set; }
-        public bool ExternalDependenciesFoldout { get; set; }
-
-        public UnityPackage Package
-        {
-            get
-            {
-                return _package;
-            }
-        }
-
-        private UnityPackage _package;
-
-        public UnityPackageTopView(UnityPackage package)
-        {
-            _package = package;
-            TopFoldout = false;
-            PackageDependenciesFoldout = false;
-            ExternalDependenciesFoldout = false;
-        }
-
-        /// <summary>
-        /// Renders this item
-        /// </summary>
-        public void Render()
-        {
-            GUIStyle topFoldout = new GUIStyle(EditorStyles.foldout);
-            topFoldout.fontStyle = FontStyle.Bold;
-            TopFoldout = EditorGUILayout.Foldout(TopFoldout, _package.Name, topFoldout);
-            if (!TopFoldout)
-            {
-                return;
-            }
-
-            if(GUILayout.Button("Export Package", EditorStyles.miniButtonLeft))
-            {
-                Package.ExportPackage();
-            }
-
-            EditorGUI.indentLevel++;
-            // show dependencies
-            if (_package.Dependencies.Count != 0)
-            {
-                PackageDependenciesFoldout = EditorGUILayout.Foldout(PackageDependenciesFoldout, "Pacakge Dependencies: " + _package.Dependencies.Count);
-                if (PackageDependenciesFoldout)
-                {
-                    EditorGUI.indentLevel++;
-                    foreach (var dep in _package.Dependencies)
-                    {
-                        EditorGUILayout.LabelField(" - " + dep.Name);
-                    }
-                    EditorGUI.indentLevel--;
-                }
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Pacakge Dependencies: 0");
-            }
-            EditorGUI.indentLevel--;
-
-            EditorGUI.indentLevel++;
-            // show external references
-            if (_package.ExternalDependencies.Count != 0)
-            {
-                GUIStyle myFoldoutStyle = new GUIStyle(EditorStyles.foldout);
-                Color myStyleColor = Color.red;
-                myFoldoutStyle.normal.textColor = myStyleColor;
-
-                ExternalDependenciesFoldout = EditorGUILayout.Foldout(ExternalDependenciesFoldout, "External Dependencies: " + _package.ExternalDependencies.Count, myFoldoutStyle);
-                if (ExternalDependenciesFoldout)
-                {
-                    
-                    EditorGUI.indentLevel++;
-                    foreach (var dep in _package.ExternalDependencies)
-                    {
-                        EditorGUILayout.LabelField(" - " + dep.Path);
-                    }
-                    EditorGUI.indentLevel--;
-                }
-            }
-            else
-            {
-                GUIStyle myLabelStyle = new GUIStyle(EditorStyles.label);
-                Color myStyleColor = Color.green;
-                myLabelStyle.normal.textColor = myStyleColor;
-                EditorGUILayout.LabelField("External Dependencies: 0", myLabelStyle);
-            }
-            EditorGUI.indentLevel--;
-        }
-    }
-
-    /// <summary>
-    /// Represents a unity package 
-    /// </summary>
-    public class UnityPackage
-    {
-        /// <summary>
-        /// The name of this package
-        /// </summary>
-        public string Name
-        {
-            get
-            {
-                return _name;
-            }
-        }
-
-        /// <summary>
-        /// The packages this package depends on
-        /// </summary>
-        public List<UnityPackage> Dependencies
-        {
-            get
-            {
-                return _dependencies;
-            }
-        }
-
-        /// <summary>
-        /// Returns all files that will be included in this file
-        /// </summary>
-        public List<File> Files
-        {
-            get
-            {
-                return _files;
-            }
-        }
-
-        /// <summary>
-        /// List of all dependencies external to this package or its package dependencies
-        /// </summary>
-        public List<File> ExternalDependencies
-        {
-            get
-            {
-                return _externalDependencies;
-            }
-        }
-
-        public UnityPackage(string name)
-        {
-            _name = name;
-        }
-
-        /// <summary>
-        /// Refreshes the file list for this package
-        /// </summary>
-        public void UpdateFileLists()
-        {
-            // update file list
-            _files = new List<File>();
-            var info = new DirectoryInfo(Application.dataPath + "\\" + Name);
-            var fileInfo = info.GetFiles("*.*", SearchOption.AllDirectories);
-            foreach (var file in fileInfo)
-            {
-                if (System.IO.File.Exists(file.ToString()))
-                {
-                    File f = new File(file.ToString(), this);
-                }
-            }
-
-            // update external dependencies list
-            _externalDependencies = new List<File>();
-            var paths = _files.Select(f => f.Path).ToArray();
-            List<string> cutPaths = new List<string>();
-            foreach(var path in paths)
-            {
-                var ind = path.IndexOf("Assets");
-                var cutPath = path.Remove(0, ind);
-                cutPaths.Add(cutPath);
-            }
-            
-            var dependencies = AssetDatabase.GetDependencies(cutPaths.ToArray(), true);
-            foreach (var file in dependencies)
-            {
-                bool isExternal = true;
-                if (file.ToLower().Contains(Name.ToLower()))
-                {
-                    continue;
-                }
-                foreach(var package in Dependencies)
-                {
-                    if (file.ToLower().Contains(package.Name.ToLower()))
-                    {
-                        isExternal = false;
-                        continue;
-                    }
-                }
-                if (isExternal)
-                {
-                    File f = new File(file, this);
-                    _externalDependencies.Add(f);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Updates the package dependencies
-        /// </summary>
-        /// <param name="dependencies"></param>
-        public void UpdatePackageDependencies(List<UnityPackage> dependencies)
-        {
-            _dependencies = dependencies;
-            UpdateFileLists();
-        }
-
-        /// <summary>
-        /// Exports this package
-        /// </summary>
-        public void ExportPackage()
-        {
-            AssetDatabase.ExportPackage("Assets\\" + Name, Name + ".unitypackage", ExportPackageOptions.Interactive | ExportPackageOptions.Recurse);
-        }
-
-        private string _name;
-        private List<UnityPackage> _dependencies = new List<UnityPackage>();
-        private List<File> _externalDependencies = null;
-        private List<File> _files = null;
-        private List<File> _filesWithBadDependencies = null;
-    }
-
-    /// <summary>
-    /// Represents a file
-    /// </summary>
-    public class File
-    {
-
-        public string Path
-        {
-            get
-            {
-                return _path;
-            }
-        }
-
-        public File(string path, UnityPackage package)
-        {
-            _path = path;
-            _package = package;
-            package.Files.Add(this);
-        }
-
-        private string _path;
-        private UnityPackage _package;
-    }
 }
